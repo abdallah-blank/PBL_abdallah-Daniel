@@ -86,22 +86,50 @@ bool isAuthorized(String uid)
   return false;
 }
 
-void CardCheck(String uid){
-  if (isAuthorized(uid) == false){
-    digitalWrite(RED_PIN, HIGH);
-  }
-  else{
-    digitalWrite(GREEN_PIN, !digitalRead(GREEN_PIN));
+
+
+void ledOff(){
     digitalWrite(RED_PIN, LOW);
-  }
 }
 
+void accessGranted()
+{
+    ledOff();
+    Serial.println("ACCESS GRANTED");
+    digitalWrite(GREEN_PIN, !digitalRead(GREEN_PIN));
+}
 
+void accessDenied(){
+    digitalWrite(RED_PIN, HIGH);
+}
+
+void cardCheck(String uid){
+  if (isAuthorized(uid) == false){
+    accessDenied();
+  }
+  else{
+    accessGranted();
+  }
+}
 void setup(){
-
+    Serial.begin(115200);
+    SPI.begin();
+    //Rfid
+    rfid.PCD_Init();
+    delay(10);
+    rfid.PCD_DumpVersionToSerial();
+    pinMode(RED_PIN, OUTPUT);
+    pinMode(GREEN_PIN, OUTPUT);
 
 }
 
 void loop(){
-
+  // Card detection
+  if (rfid.PICC_IsNewCardPresent() == true && rfid.PICC_ReadCardSerial() == true)
+  {
+    String uid = getUID();
+    cardCheck(uid);
+    rfid.PICC_HaltA();
+    rfid.PCD_StopCrypto1();
+  }
 }
