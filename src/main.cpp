@@ -45,7 +45,9 @@ String authorizedUIDs[2];
 int numAuthorized = 2;
 int tappedCard = 0;
 
-
+//temp readings var
+const int NUM_SAMPLES = 10;
+int samples[NUM_SAMPLES];
 
 String getUID()
 {
@@ -111,6 +113,41 @@ void cardCheck(String uid){
     accessGranted();
   }
 }
+
+
+//bmp
+Adafruit_BMP280 bmp;
+
+void grabSample(){
+    int sampleTime = millis();
+    if (millis() - sampleTime > 2000){
+        for (int i = 0 ; i < NUM_SAMPLES; i++){
+            
+            samples[i] = bmp.readTemperature();
+            sampleTime = millis();
+        }
+    }
+
+}
+
+float getAvg(){
+    long sum = 0;
+    for (int i = 0; i < NUM_SAMPLES; i++){
+        sum = sum + samples[i];
+    }
+
+    return (float)sum/NUM_SAMPLES;
+}
+
+
+
+
+
+
+
+
+
+
 void setup(){
     Serial.begin(115200);
     SPI.begin();
@@ -120,6 +157,18 @@ void setup(){
     rfid.PCD_DumpVersionToSerial();
     pinMode(RED_PIN, OUTPUT);
     pinMode(GREEN_PIN, OUTPUT);
+
+    //bmp280
+      Wire.begin();
+    // BMP280 code
+    if(bmp.begin(0x76))
+    {
+        Serial.println("BMP280 Found");
+    }
+    else
+    {
+        Serial.println("BMP280 Not Found");
+    }
 
 }
 
