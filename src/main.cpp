@@ -41,8 +41,8 @@ float temperature;
 #define FAN_PIN 9
 
 //RFID CHECKIN/OUT
+const int numAuthorized = 2; //admin card and student card for access..
 String authorizedUIDs[numAuthorized];
-int numAuthorized = 2;
 int tappedCard = 0;
 bool occupied = false;
 
@@ -108,7 +108,7 @@ void checkIN()
 
 void checkOUT(){
     ledOff();
-    Seria.println("Checked OUT");
+    Serial.println("Checked OUT");
     digitalWrite(GREEN_PIN, LOW);
     occupied = false;
 }
@@ -139,7 +139,7 @@ void accessCheck(){
 //bmp
 Adafruit_BMP280 bmp;
 
-void grabSample(){
+void grabTemp(){
     int sampleTime = millis();
     if (millis() - sampleTime >= 2000){
         for (int i = 0 ; i < NUM_SAMPLES; i++){
@@ -151,7 +151,7 @@ void grabSample(){
 
 }
 
-float getAvg(){
+float getAvgTemp(){
     long sum = 0;
     for (int i = 0; i < NUM_SAMPLES; i++){
         sum = sum + samples[i];
@@ -196,8 +196,7 @@ void loop(){
   // Card detection
   if (rfid.PICC_IsNewCardPresent() == true && rfid.PICC_ReadCardSerial() == true)
   {
-    String uid = getUID();
-    cardCheck(uid);
+    accessCheck();
     rfid.PICC_HaltA();
     rfid.PCD_StopCrypto1();
   }
