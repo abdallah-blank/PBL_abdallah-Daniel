@@ -16,4 +16,26 @@
 #define Button_PIN 14
 
 //Global Variables
-byte statusByte = 0 // PT 4.2 FROM LAB 2 PG 4
+volatile bool helpButtonPressed = false; 
+byte statusByte = 0; // SET HELP REQ BIT
+
+void setup ()
+{
+pinMode(Button_PIN, INPUT_PULLUP); // BUTTON INPUT PULLUP SET
+attachInterrupt(digitalPinToInterrupt(Button_PIN), handleHelpButton, FALLING); 
+}
+
+void loop ()
+{
+if (helpButtonPressed) 
+{
+  helpButtonPressed = false;
+  statusByte |= 0b00000100; // HELP REQUEST BIT
+}
+}
+
+void IRAM_ATTR handleHelpButton() 
+{
+helpButtonPressed = true;
+}
+
