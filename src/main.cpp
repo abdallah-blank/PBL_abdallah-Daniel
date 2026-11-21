@@ -41,9 +41,12 @@ float temperature;
 #define FAN_PIN 9
 
 //RFID CHECKIN/OUT
-String authorizedUIDs[2];
+String authorizedUIDs[numAuthorized];
 int numAuthorized = 2;
 int tappedCard = 0;
+bool occupied = false;
+
+
 
 //temp readings var
 const int NUM_SAMPLES = 10;
@@ -69,9 +72,9 @@ String getUID()
   return uid;
 }
 
-//First card tapped gets authorisation and books the room
-String addUID(){
-  if (tappedCard = 1){
+//card tapped gets authorisation and books the room ( if unoccupied)
+void addUID(){
+  if (tappedCard == 1){
     authorizedUIDs[1] += getUID();
   }
 }
@@ -94,11 +97,20 @@ void ledOff(){
     digitalWrite(RED_PIN, LOW);
 }
 
-void accessGranted()
+void checkIN()
 {
     ledOff();
-    Serial.println("ACCESS GRANTED");
-    digitalWrite(GREEN_PIN, !digitalRead(GREEN_PIN));
+    Serial.println("Checked in");
+    digitalWrite(GREEN_PIN, HIGH);
+    addUID();
+    occupied = true;
+}
+
+void checkOUT(){
+    ledOff();
+    Seria.println("Checked OUT");
+    digitalWrite(GREEN_PIN, LOW);
+    occupied = false;
 }
 
 void accessDenied(){
@@ -110,8 +122,17 @@ void cardCheck(String uid){
     accessDenied();
   }
   else{
-    accessGranted();
+    checkOUT();
   }
+}
+
+void accessCheck(){
+    if(occupied == false){
+        checkIN();
+    }
+    else{
+        cardCheck(getUID());
+    }
 }
 
 
@@ -120,7 +141,7 @@ Adafruit_BMP280 bmp;
 
 void grabSample(){
     int sampleTime = millis();
-    if (millis() - sampleTime > 2000){
+    if (millis() - sampleTime >= 2000){
         for (int i = 0 ; i < NUM_SAMPLES; i++){
             
             samples[i] = bmp.readTemperature();
@@ -153,7 +174,6 @@ void setup(){
     SPI.begin();
     //Rfid
     rfid.PCD_Init();
-    delay(10);
     rfid.PCD_DumpVersionToSerial();
     pinMode(RED_PIN, OUTPUT);
     pinMode(GREEN_PIN, OUTPUT);
