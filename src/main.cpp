@@ -1,12 +1,12 @@
 #include <Arduino.h>
+#include <Wire.h>
 #include <ArduinoJson.h>
 #include <SPI.h>
 #include <MFRC522.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
-#include <Wifi.h>
+#include <WiFi.h>
 #include <WebServer.h>
-#include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <SD.h>
@@ -27,6 +27,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, OLED_DC, OLED_RESET,
 
 //Temp bmp280
 float temperature;
+Adafruit_BMP280 bmp;
 
 //Potentiometer
 #define POT_PIN 32
@@ -40,12 +41,14 @@ float temperature;
 #define Button_PIN 14
 #define FAN_PIN 9
 
-//RFID CHECKIN/OUT
+//RFID CHECKIN/OUT Variables
 const int numAuthorized = 2; //admin card and student card for access..
 String authorizedUIDs[numAuthorized];
 int tappedCard = 0;
 bool occupied = false;
 
+//Potentiometer Variables
+int setPoint = 0;
 
 
 //temp readings var
@@ -137,7 +140,7 @@ void accessCheck(){
 
 
 //bmp
-Adafruit_BMP280 bmp;
+
 
 void grabTemp(){
     int sampleTime = millis();
@@ -160,6 +163,14 @@ float getAvgTemp(){
     return (float)sum/NUM_SAMPLES;
 }
 
+//FAN CONTROLS
+
+void potRead(){
+  //int potValue = analogRead(POT_PIN);
+
+  //setPoint = map(potValue, 0, 4095, 0,)
+  //bmp.getTemp()
+}
 
 
 
@@ -189,6 +200,10 @@ void setup(){
     {
         Serial.println("BMP280 Not Found");
     }
+
+    //ADC settings
+    analogReadResolution(12);
+    analogSetAttenuation(ADC_11db);
 
 }
 
