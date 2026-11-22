@@ -17,7 +17,18 @@
 
 //Global Variables
 volatile bool helpButtonPressed = false; 
-byte statusByte = 0; // SET HELP REQ BIT
+byte statusByte = 0; // STATUS BYtE
+
+//4.1
+unsigned long lastButtonPress = 0; //Stores time of last button press L10
+const unsigned long debounceDelay = 200; // Makes it need at least 200 milisec L10
+
+bool occupied = false; //In Abdullah's code too
+
+void IRAM_ATTR handleHelpButton() 
+{
+helpButtonPressed = true;
+}
 
 void setup ()
 {
@@ -27,15 +38,23 @@ attachInterrupt(digitalPinToInterrupt(Button_PIN), handleHelpButton, FALLING);
 
 void loop ()
 {
-if (helpButtonPressed) 
+if (helpButtonPressed) //4.1
 {
   helpButtonPressed = false;
-  statusByte |= 0b00000100; // HELP REQUEST BIT
-}
+  //Debounce button
+  if (millis() - lastButtonPress >= debounceDelay) //4.1
+  {
+    lastButtonPress = millis(); //4.1
+  statusByte |= 0b00000100; // SET HELP REQ
+  } 
 }
 
-void IRAM_ATTR handleHelpButton() 
+if (occupied)
 {
-helpButtonPressed = true;
+  statusByte |= 0b00000001; // SET OCCUPIED
 }
-
+else
+{
+  statusByte &= 0b00000001; // CLEAR OCCUPIED
+}
+}
