@@ -14,10 +14,12 @@
 
 //Pin Definitions
 #define Button_PIN 14
+#define chipSelect 15
 
 //Global Variables
 volatile bool helpButtonPressed = false; 
 byte statusByte = 0; // STATUS BYtE
+byte previousStatusByte = 0; // PREVIOUS STATUS BYTE
 
 //4.1
 unsigned long lastButtonPress = 0; //Stores time of last button press L10
@@ -32,8 +34,21 @@ helpButtonPressed = true;
 
 void setup ()
 {
+Serial.begin(115200);
+SPI.begin();
 pinMode(Button_PIN, INPUT_PULLUP); // BUTTON INPUT PULLUP SET
 attachInterrupt(digitalPinToInterrupt(Button_PIN), handleHelpButton, FALLING); 
+
+if (SD.begin())
+{
+  Serial.println("SD card initialized.");
+}
+else
+{
+  Serial.println("SD card initialization failed!");
+}
+
+S
 }
 
 void loop ()
@@ -44,17 +59,38 @@ if (helpButtonPressed) //4.1
   //Debounce button
   if (millis() - lastButtonPress >= debounceDelay) //4.1
   {
-    lastButtonPress = millis(); //4.1
+  lastButtonPress = millis(); //4.1
   statusByte |= 0b00000100; // SET HELP REQ
   } 
 }
 
-if (occupied)
+if (occupied) //L2
 {
-  statusByte |= 0b00000001; // SET OCCUPIED
+  statusByte |= 0b00000001; // ROOm OCCUPIED
 }
 else
 {
-  statusByte &= 0b00000001; // CLEAR OCCUPIED
+  statusByte &= ~0b00000001; // ROOM FREe
+}
+
+if (getAvgTemp() > potRead())
+{
+  statusByte |= 0b00000010; // SET TEMP HIGH
+}
+else
+{
+  statusByte &= ~0b00000010; // SET TEMP LOW
+}
+
+if (statusByte != previousStatusByte)
+{
+  Serial.print("Status Byte: ");
+  Serial.println(statusByte, BIN);
+  previousStatusByte = statusByte; //L2
+}
+
+if (statusByte & 0b00000100) //L2
+{
+  Serial.println("help requested");
 }
 }
