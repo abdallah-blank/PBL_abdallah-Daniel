@@ -49,7 +49,12 @@ bool occupied = false;
 
 //Potentiometer Variables
 int setPoint = 0;
+int ADC_BITS = 12;
 
+//Fan PWM variables
+#define LED_CH 0
+const int PWM_FREQ = 500;
+const int PWM_RES = 8;
 
 //temp readings var
 const int NUM_SAMPLES = 10;
@@ -165,14 +170,25 @@ float getAvgTemp(){
 
 //FAN CONTROLS
 
-void potRead(){
-  //int potValue = analogRead(POT_PIN);
-
-  //setPoint = map(potValue, 0, 4095, 0,)
-  //bmp.getTemp()
+float potRead(){
+  
+  int potValue = analogRead(POT_PIN);
+  int maxValue = pow(2,ADC_BITS) -1;
+  float setPoint = potValue * 40 / maxValue;
+  return setPoint;
 }
 
+void fanSpeed(){
+  int potValue = analogRead(POT_PIN);
 
+  if(potRead() > getAvgTemp() && occupied == true){
+    int duty = map(potValue, 0, 4095, 0, 255);
+    ledcWrite(FAN_PIN, duty);
+  }
+  else {
+    
+  }
+}
 
 
 
@@ -204,6 +220,9 @@ void setup(){
     //ADC settings
     analogReadResolution(12);
     analogSetAttenuation(ADC_11db);
+
+    //PWM settings
+    ledcAttach(FAN_PIN, PWM_FREQ, PWM_RES);
 
 }
 
