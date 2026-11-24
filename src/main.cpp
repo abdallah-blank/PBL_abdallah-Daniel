@@ -13,16 +13,16 @@
 
 //Define pins
 //rfid
-#define RFID_SS 2
+#define RFID_SS 5
 #define RFID_RST 27
 MFRC522 rfid(RFID_SS, RFID_RST);
 //OLED
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 
-#define OLED_DC     18
+#define OLED_DC     19
 #define OLED_RESET 17
-#define OLED_CS    5
+#define OLED_CS    2
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, OLED_DC, OLED_RESET, OLED_CS);
 
 //Temp bmp280
@@ -76,14 +76,13 @@ String getUID()
     }
   }
   uid.toUpperCase();
-  tappedCard++;
   return uid;
 }
 
 //card tapped gets authorisation and books the room ( if unoccupied)
-void addUID(){
+void addUID(String uid){
   if (tappedCard == 1){
-    authorizedUIDs[1] += getUID();
+    authorizedUIDs[0] = uid;
   }
 }
 
@@ -105,12 +104,12 @@ void ledOff(){
     digitalWrite(RED_PIN, LOW);
 }
 
-void checkIN()
+void checkIN(String uid)
 {
     ledOff();
     Serial.println("Checked in");
     digitalWrite(GREEN_PIN, HIGH);
-    addUID();
+    addUID(uid);
     occupied = true;
 }
 
@@ -119,10 +118,12 @@ void checkOUT(){
     Serial.println("Checked OUT");
     digitalWrite(GREEN_PIN, LOW);
     occupied = false;
+    tappedCard = 0;
 }
 
 void accessDenied(){
     digitalWrite(RED_PIN, HIGH);
+    Serial.println("ACCESS DENIED");
 }
 
 void cardCheck(String uid){
@@ -134,12 +135,12 @@ void cardCheck(String uid){
   }
 }
 
-void accessCheck(){
+void accessCheck(String uid){
     if(occupied == false){
-        checkIN();
+        checkIN(uid);
     }
     else{
-        cardCheck(getUID());
+        cardCheck(uid);
     }
 }
 
@@ -230,20 +231,23 @@ void setup(){
         Serial.println("BMP280 Not Found");
     }
 
-    //ADC settings
-    analogReadResolution(12);
-    analogSetAttenuation(ADC_11db);
+    // //ADC settings
+    // analogReadResolution(12);
+    // analogSetAttenuation(ADC_11db);
 
-    //PWM settings
-    ledcAttach(FAN_PIN, PWM_FREQ, PWM_RES);
+    // //PWM settings
+    // ledcAttach(FAN_PIN, PWM_FREQ, PWM_RES);
+
 
 }
 
 void loop(){
-  // Card detection
+  Card detection
   if (rfid.PICC_IsNewCardPresent() == true && rfid.PICC_ReadCardSerial() == true)
   {
-    accessCheck();
+    String uid = getUID();
+    Serial.println(uid);
+    //accessCheck(uid);
     rfid.PICC_HaltA();
     rfid.PCD_StopCrypto1();
   }
