@@ -53,6 +53,19 @@ else {
     }
   }
 
+  void handleData()
+{
+JsonDocument doc;
+
+doc["roomStatus"] = occupied ? "Occupied" : "Free";
+doc["averageTemperature"] = getAvgTemp();
+doc["fanLevel"] = 0;
+doc["statusByte"] = statusByte;
+String json;
+serializeJson(doc, json);
+server.send(200, "application/json", json);
+}
+
 //SETUP
 void setup ()
 {
@@ -86,12 +99,20 @@ else
 {
     Serial.println("SD card initialization failed!");
 }
+WiFi.mode(WIFI_AP);
+WiFi.softAP(ssid, password);
+Serial.print("IP Adress: "); // not sure if needed... but
+Serial.println(WiFi.softAPIP());
+server.on("/data", HTTP_GET,handleData);
+server.begin();
+Serial.println("Server started");
 } 
 
 
 //LOOP
 void loop ()
 {
+server.handleClient(); 
 if (helpButtonPressed) //4.1
 {
   helpButtonPressed = false;
