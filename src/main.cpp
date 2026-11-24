@@ -25,12 +25,13 @@ bool sdReady = false; // LAB 5
 const char* ssid = "STUDYROOMESP32"; // LAB 7
 const char* password = "password167!"; // PASSWORD ---------------------- LAB 7
 WebServer server(80); // LAB 7 
+int ADC_BITS = 12;
+
 //ABDULLAH CODE
-// Adafruit_BMP280 bmp;
-// const int NUM_SAMPLES = 10;
-// int samples[NUM_SAMPLES];
-// const int NUM_SAMPLES = 10;
-// int samples[NUM_SAMPLES];
+Adafruit_BMP280 bmp;
+const int NUM_SAMPLES = 10;
+int samples[NUM_SAMPLES];
+
 
 //4.1 
 volatile unsigned long lastButtonPress = 0; //LAB 10 PART 4 Stores time of last button press 
@@ -197,7 +198,23 @@ IP Address: 192.168.4.1
 )rawliteral";
 // MS SAJU WEBPAGE END
 
+float getAvgTemp(){
+    long sum = 0;
+    for (int i = 0; i < NUM_SAMPLES; i++){
+        sum = sum + samples[i];
+    }
 
+    return (float)sum/NUM_SAMPLES;
+}
+
+
+float potRead(){
+  
+  int potValue = analogRead(POT_PIN);
+  int maxValue = pow(2,ADC_BITS) -1;
+  float setPoint = potValue * 40 / maxValue;
+  return setPoint;
+}
 
 void IRAM_ATTR handleHelpButton()
 { if (millis() - lastButtonPress > 200)
