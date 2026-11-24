@@ -15,25 +15,32 @@
 //Pin Definitions
 #define Button_PIN 14
 #define chipSelect 15
+#define POT_PIN 32 // ABDULLAH CODE
 
 //Global Variables
-volatile bool helpButtonPressed = false; 
-byte statusByte = 0; // STATUS BYtE
-byte previousStatusByte = 0; // PREVIOUS STATUS BYTE
-bool sdReady = false; // SD CARD READY FLAG
-const char* ssid = "STUDYROOMESP32"; // SSID - L7
-const char* password = "password167!"; // PASSWORD -----------------------
-WebServer server(80); // Create a web server object that listens for HTTP request on port 80  
+volatile bool helpButtonPressed = false; //LAB 10
+byte statusByte = 0; // LAB 2
+byte previousStatusByte = 0; // Ref
+bool sdReady = false; // LAB 5
+const char* ssid = "STUDYROOMESP32"; // LAB 7
+const char* password = "password167!"; // PASSWORD ---------------------- LAB 7
+WebServer server(80); // LAB 7 
+//ABDULLAH CODE
+// Adafruit_BMP280 bmp;
+// const int NUM_SAMPLES = 10;
+// int samples[NUM_SAMPLES];
+// const int NUM_SAMPLES = 10;
+// int samples[NUM_SAMPLES];
 
-//4.1
-unsigned long lastButtonPress = 0; //Stores time of last button press L10
-const unsigned long debounceDelay = 200; // Makes it need at least 200 milisec L10
+//4.1 
+unsigned long lastButtonPress = 0; //LAB 10 Stores time of last button press 
+const unsigned long debounceDelay = 200; // LAB 10 Makes it need at least 200 milisec
 
 bool occupied = false; //In Abdullah's code too
 
-const char webpage[] PROGMEM = R"rawliteral(
+// MS SAJU WEBPAGE START
+const char webpage[] PROGMEM = R"rawliteral( 
 
-//MS SAJU'S WEBPAGE FROM LAB 7 
 <!DOCTYPE html>
 <html>
 
@@ -189,9 +196,9 @@ IP Address: 192.168.4.1
 </html>
 
 )rawliteral";
+// MS SAJU WEBPAGE END
 
-
-void IRAM_ATTR handleHelpButton() 
+void IRAM_ATTR handleHelpButton() // LAB 10
 {
 helpButtonPressed = true;
 }
@@ -213,7 +220,7 @@ else {
     }
   }
 
-void handleData()
+void handleData() //LAB 11 msotly bit from 7
 {
 JsonDocument doc;
 
@@ -226,7 +233,7 @@ serializeJson(doc, json);
 server.send(200, "application/json", json);
 }
 
-void handleRoot()
+void handleRoot() // LAB 7
 {
   String page = webpage;
   page.replace(
