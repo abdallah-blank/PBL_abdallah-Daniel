@@ -22,7 +22,7 @@ MFRC522 rfid(RFID_SS, RFID_RST);
 
 #define OLED_DC     18
 #define OLED_RESET 17
-#define OLED_CS    14
+#define OLED_CS    5
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, OLED_DC, OLED_RESET, OLED_CS);
 
 //Temp bmp280
@@ -185,9 +185,7 @@ void fanSpeed(){
     int duty = map(potValue, 0, 4095, 0, 255);
     ledcWrite(FAN_PIN, duty);
   }
-  else {
-    
-  }
+
 }
 
 //OLED display function
@@ -250,18 +248,23 @@ void loop(){
     rfid.PCD_StopCrypto1();
   }
 
-  float temperature = getAvgTemp();
+  //Display Room information on OLED
+  float temp = getAvgTemp();
+  String temperature = String(temp);
   showOnOLED(0, temperature);
   if(occupied){
     showOnOLED(16, "Occupied");
     display.setCursor(0,0);
-    display.println("Temperature: " temperature);
+    display.println("Temperature: ");
+    display.print(temperature);
   }
   else{
     showOnOLED(16, "Free");
     display.setCursor(0,0);
-    display.println("Temperature: " temperature);
+    display.println("Temperature: ");
+    display.print(temperature);
   }
 
+  fanSpeed();
 
 }
