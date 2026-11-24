@@ -33,8 +33,7 @@ WebServer server(80); // LAB 7
 // int samples[NUM_SAMPLES];
 
 //4.1 
-unsigned long lastButtonPress = 0; //LAB 10 Stores time of last button press 
-const unsigned long debounceDelay = 200; // LAB 10 Makes it need at least 200 milisec
+volatile unsigned long lastButtonPress = 0; //LAB 10 PART 4 Stores time of last button press 
 
 bool occupied = false; //In Abdullah's code too
 
@@ -198,9 +197,14 @@ IP Address: 192.168.4.1
 )rawliteral";
 // MS SAJU WEBPAGE END
 
-void IRAM_ATTR handleHelpButton() // LAB 10
-{
-helpButtonPressed = true;
+
+
+void IRAM_ATTR handleHelpButton()
+{ if (millis() - lastButtonPress > 200)
+  {
+    lastButtonPress = millis();
+    helpButtonPressed = true;
+  }
 }
 
 void logEvent(const char* eventType) {  //LAB 5
@@ -303,16 +307,11 @@ Serial.println("Server started");
 void loop ()
 {
 server.handleClient(); 
-if (helpButtonPressed) //4.1
+if (helpButtonPressed == true) // LAB 10 PArt 4
 {
   helpButtonPressed = false;
-  //Debounce button
-  if (millis() - lastButtonPress >= debounceDelay) //4.1
-  {
-  lastButtonPress = millis(); //4.1
-  statusByte |= 0b00000100; // SET HELP REQ
-  logEvent("HELP");
-  } 
+  statusByte |= 0b00000100; // LAB 2 BIT MASKING 
+  logEvent("HELP"); // LAB 5 .. 
 }
 
 if (occupied) //L2
