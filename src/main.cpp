@@ -190,7 +190,16 @@ void fanSpeed(){
   }
 }
 
+//OLED display function
+void showOnOLED(int Ycursor, String message){
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(2);
 
+  display.setCursor(0,Ycursor);
+  display.println(message);
+  display.display();
+}
 
 
 
@@ -204,7 +213,13 @@ void setup(){
     rfid.PCD_DumpVersionToSerial();
     pinMode(RED_PIN, OUTPUT);
     pinMode(GREEN_PIN, OUTPUT);
+    
+    //OLED setp
+    display.begin(SSD1306_SWITCHCAPVCC);
+    display.clearDisplay();
 
+
+    
     //bmp280
       Wire.begin();
     // BMP280 code
@@ -234,4 +249,19 @@ void loop(){
     rfid.PICC_HaltA();
     rfid.PCD_StopCrypto1();
   }
+
+  float temperature = getAvgTemp();
+  showOnOLED(0, temperature);
+  if(occupied){
+    showOnOLED(16, "Occupied");
+    display.setCursor(0,0);
+    display.println("Temperature: " temperature);
+  }
+  else{
+    showOnOLED(16, "Free");
+    display.setCursor(0,0);
+    display.println("Temperature: " temperature);
+  }
+
+
 }
