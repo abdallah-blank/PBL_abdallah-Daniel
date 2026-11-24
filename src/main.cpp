@@ -21,6 +21,9 @@ volatile bool helpButtonPressed = false;
 byte statusByte = 0; // STATUS BYtE
 byte previousStatusByte = 0; // PREVIOUS STATUS BYTE
 bool sdReady = false; // SD CARD READY FLAG
+const char* ssid = "STUDYROOMESP32"; // SSID - L7
+const char* password = "password167!"; // PASSWORD -----------------------
+WebServer server(80); // Create a web server object that listens for HTTP request on port 80  
 
 //4.1
 unsigned long lastButtonPress = 0; //Stores time of last button press L10
