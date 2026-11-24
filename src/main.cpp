@@ -20,6 +20,7 @@
 volatile bool helpButtonPressed = false; 
 byte statusByte = 0; // STATUS BYtE
 byte previousStatusByte = 0; // PREVIOUS STATUS BYTE
+bool sdReady = false; // SD CARD READY FLAG
 
 //4.1
 unsigned long lastButtonPress = 0; //Stores time of last button press L10
@@ -32,6 +33,24 @@ void IRAM_ATTR handleHelpButton()
 helpButtonPressed = true;
 }
 
+void logEvent(const char* eventType) {  //LAB 5
+if (!sdReady) {
+    Serial.println("SD card not read");
+    return; 
+    }
+File logFile = SD.open("/events.csv", FILE_APPEND);
+if (logFile) {
+    logFile.print(millis());
+    logFile.print(",");
+    logFile.println(eventType);
+    logFile.close();
+    } 
+else {
+    Serial.println("Error opening log file");
+    }
+  }
+
+//SETUP
 void setup ()
 {
 Serial.begin(115200);
@@ -39,18 +58,35 @@ SPI.begin();
 pinMode(Button_PIN, INPUT_PULLUP); // BUTTON INPUT PULLUP SET
 attachInterrupt(digitalPinToInterrupt(Button_PIN), handleHelpButton, FALLING); 
 
-if (SD.begin())
+sdReady = SD.begin(chipSelect);
+if (sdReady)
 {
-  Serial.println("SD card initialized.");
+ Serial.println("SD card initialized.");
+
+if (!SD.exists("/events.csv"))
+{
+  File logFile = SD.open("/events.csv", FILE_WRITE);
+
+  if (logFile)
+  {
+    logFile.println("Timestamp,EventType");
+    logFile.close();
+    Serial.println("Log file created.");
+  }
+  else
+  {
+  Serial.println("Error creating log file.");
+  }
+}
 }
 else
 {
-  Serial.println("SD card initialization failed!");
+    Serial.println("SD card initialization failed!");
 }
+} 
 
-S
-}
 
+//LOOP
 void loop ()
 {
 if (helpButtonPressed) //4.1
@@ -61,6 +97,7 @@ if (helpButtonPressed) //4.1
   {
   lastButtonPress = millis(); //4.1
   statusByte |= 0b00000100; // SET HELP REQ
+  logEvent("HELP");
   } 
 }
 
@@ -89,8 +126,4 @@ if (statusByte != previousStatusByte)
   previousStatusByte = statusByte; //L2
 }
 
-if (statusByte & 0b00000100) //L2
-{
-  Serial.println("help requested");
-}
 }
