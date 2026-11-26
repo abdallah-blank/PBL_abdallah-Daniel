@@ -59,7 +59,7 @@ int ADC_BITS = 12;
 
 //Fan PWM variables
 #define LED_CH 0
-const int PWM_FREQ = 500;
+const int PWM_FREQ = 25000;
 const int PWM_RES = 8;
 
 //temp readings var
@@ -215,7 +215,7 @@ void fanSpeed(){
   int potValue = analogRead(POT_PIN);
 
   if(potRead() < getAvgTemp() && occupied == true){
-    int duty = map(potValue, 0, 4095, 0, 255);
+    int duty = map(potValue, 0, 4095, 100, 255);
     ledcWrite(FAN_PIN, duty);
   }
   else{
@@ -305,8 +305,8 @@ void loop(){
     display.print(temperature);
     display.display();
   }
-
-  fanSpeed();
+  ledcWrite(FAN_PIN, 255);
+  // fanSpeed();
   Serial.println(potRead());
 
   //timer
