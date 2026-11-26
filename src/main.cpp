@@ -49,12 +49,11 @@ bool indicatorOn = false;
 unsigned long sampleTime = 0;
 
 //RFID CHECKIN/OUT Variables
-const int numAuthorized = 2; //admin card and student card for access..
+const int numAuthorized = 1; //admin card and student card for access..
 String authorizedUIDs[numAuthorized];
 bool occupied = false;
 
 //Potentiometer Variables
-int setPoint = 0;
 int ADC_BITS = 12;
 
 //Fan PWM variables
@@ -212,10 +211,12 @@ float potRead(){
 }
 
 void fanSpeed(){
-  int potValue = analogRead(POT_PIN);
+  float setPoint = potRead();
+  float temp = getAvgTemp();
+  float difference = temp - setPoint;
 
-  if(potRead() < getAvgTemp() && occupied == true){
-    int duty = map(potValue, 0, 4095, 100, 255);
+  if(setPoint < temp && occupied == true){
+    int duty = map(difference, 0, 10, 150, 255);
     ledcWrite(FAN_PIN, duty);
   }
   else{
@@ -305,8 +306,7 @@ void loop(){
     display.print(temperature);
     display.display();
   }
-  ledcWrite(FAN_PIN, 255);
-  // fanSpeed();
+  fanSpeed();
   Serial.println(potRead());
 
   //timer
