@@ -13,16 +13,16 @@
 
 //Define pins
 //rfid
-#define RFID_SS 5
+#define RFID_SS 2
 #define RFID_RST 27
 MFRC522 rfid(RFID_SS, RFID_RST);
 //OLED
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 
-#define OLED_DC     19
+#define OLED_DC     16
 #define OLED_RESET 17
-#define OLED_CS    2
+#define OLED_CS    5
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, OLED_DC, OLED_RESET, OLED_CS);
 
 //Temp bmp280
@@ -39,12 +39,18 @@ Adafruit_BMP280 bmp;
 #define RED_PIN 26
 #define GREEN_PIN 25
 #define Button_PIN 14
-#define FAN_PIN 9
+#define FAN_PIN 13
+//Misc Global Vars
+String lastUID = "";
+unsigned long lastScanTime = 0;
+unsigned long indicatorStart = 0;
+unsigned long indicatorTime = 0;
+bool indicatorOn = false;
+unsigned long sampleTime = 0;
 
 //RFID CHECKIN/OUT Variables
 const int numAuthorized = 2; //admin card and student card for access..
 String authorizedUIDs[numAuthorized];
-int tappedCard = 0;
 bool occupied = false;
 
 //Potentiometer Variables
@@ -58,7 +64,7 @@ const int PWM_RES = 8;
 
 //temp readings var
 const int NUM_SAMPLES = 10;
-int samples[NUM_SAMPLES];
+float samples[NUM_SAMPLES];
 
 String getUID()
 {
@@ -79,12 +85,7 @@ String getUID()
   return uid;
 }
 
-//card tapped gets authorisation and books the room ( if unoccupied)
-void addUID(String uid){
-  if (tappedCard == 1){
-    authorizedUIDs[0] = uid;
-  }
-}
+
 
 bool isAuthorized(String uid)
 {
@@ -103,27 +104,49 @@ bool isAuthorized(String uid)
 void ledOff(){
     digitalWrite(RED_PIN, LOW);
 }
+//time functions for red led turning off after a bit
+void startIndicatorTimer(unsigned long duration)
+{
+  indicatorStart = millis();
+  indicatorTime = duration;
+  indicatorOn = true;
+} 
+
+
+
+
+
+
+
+void onTimerExpired(){
+  ledOff();
+  indicatorOn = false;
+  Serial.println("Ready");
+}
+
+
 
 void checkIN(String uid)
 {
-    ledOff();
-    Serial.println("Checked in");
-    digitalWrite(GREEN_PIN, HIGH);
-    addUID(uid);
-    occupied = true;
+  Serial.println("Checked in");
+  authorizedUIDs[0] = uid;
+  ledOff();
+  digitalWrite(GREEN_PIN, HIGH);
+  occupied = true;
 }
 
 void checkOUT(){
-    ledOff();
-    Serial.println("Checked OUT");
-    digitalWrite(GREEN_PIN, LOW);
-    occupied = false;
-    tappedCard = 0;
+  Serial.println("Checked OUT");
+  authorizedUIDs[0] = "";
+  ledOff();
+  digitalWrite(GREEN_PIN, LOW);
+  occupied = false;
 }
 
 void accessDenied(){
-    digitalWrite(RED_PIN, HIGH);
-    Serial.println("ACCESS DENIED");
+  digitalWrite(RED_PIN, HIGH);
+  Serial.println("ACCESS DENIED");
+  startIndicatorTimer(1000);
 }
 
 void cardCheck(String uid){
@@ -136,12 +159,24 @@ void cardCheck(String uid){
 }
 
 void accessCheck(String uid){
-    if(occupied == false){
-        checkIN(uid);
-    }
-    else{
-        cardCheck(uid);
-    }
+  
+  if (uid == lastUID && millis() - lastScanTime < 2000)
+  {
+    Serial.println("Repeat ignored");
+    return;
+  }
+  lastUID = uid;
+  lastScanTime = millis();
+
+  Serial.print("Card UID: ");
+  Serial.println(uid);
+
+  if(occupied == false){
+      checkIN(uid);
+  }
+  else{
+      cardCheck(uid);
+  }
 }
 
 
@@ -149,42 +184,42 @@ void accessCheck(String uid){
 
 
 void grabTemp(){
-    int sampleTime = millis();
-    if (millis() - sampleTime >= 2000){
-        for (int i = 0 ; i < NUM_SAMPLES; i++){
-            
-            samples[i] = bmp.readTemperature();
-            sampleTime = millis();
-        }
+  if (millis() - sampleTime >= 2000){
+    for (int i = 0 ; i < NUM_SAMPLES; i++){ 
+      samples[i] = bmp.readTemperature();
+      sampleTime = millis();
     }
+  }
 
 }
 
 float getAvgTemp(){
-    long sum = 0;
-    for (int i = 0; i < NUM_SAMPLES; i++){
-        sum = sum + samples[i];
-    }
+  float sum = 0;
+  for (int i = 0; i < NUM_SAMPLES; i++){
+    sum = sum + samples[i];
+  }
 
-    return (float)sum/NUM_SAMPLES;
+  return (float)sum/NUM_SAMPLES;
 }
 
 //FAN CONTROLS
 
 float potRead(){
-  
   int potValue = analogRead(POT_PIN);
   int maxValue = pow(2,ADC_BITS) -1;
-  float setPoint = potValue * 40 / maxValue;
+  float setPoint = potValue * 40.0 / maxValue;
   return setPoint;
 }
 
 void fanSpeed(){
   int potValue = analogRead(POT_PIN);
 
-  if(potRead() > getAvgTemp() && occupied == true){
+  if(potRead() < getAvgTemp() && occupied == true){
     int duty = map(potValue, 0, 4095, 0, 255);
     ledcWrite(FAN_PIN, duty);
+  }
+  else{
+    ledcWrite(FAN_PIN, 0);
   }
 
 }
@@ -205,54 +240,54 @@ void showOnOLED(int Ycursor, String message){
 
 
 void setup(){
-    Serial.begin(115200);
-    SPI.begin();
-    //Rfid
-    rfid.PCD_Init();
-    rfid.PCD_DumpVersionToSerial();
-    pinMode(RED_PIN, OUTPUT);
-    pinMode(GREEN_PIN, OUTPUT);
-    
-    //OLED setp
-    display.begin(SSD1306_SWITCHCAPVCC);
-    display.clearDisplay();
+  Serial.begin(115200);
+  SPI.begin();
+  //Rfid
+  rfid.PCD_Init();
+  rfid.PCD_DumpVersionToSerial();
+  pinMode(RED_PIN, OUTPUT);
+  pinMode(GREEN_PIN, OUTPUT);
+  
+  //OLED setp
+  display.begin(SSD1306_SWITCHCAPVCC);
+  display.clearDisplay();
 
 
-    
-    //bmp280
-      Wire.begin();
-    // BMP280 code
-    if(bmp.begin(0x76))
-    {
-        Serial.println("BMP280 Found");
-    }
-    else
-    {
-        Serial.println("BMP280 Not Found");
-    }
+  
+  //bmp280
+    Wire.begin();
+  // BMP280 code
+  if(bmp.begin(0x76))
+  {
+      Serial.println("BMP280 Found");
+  }
+  else
+  {
+      Serial.println("BMP280 Not Found");
+  }
 
-    // //ADC settings
-    // analogReadResolution(12);
-    // analogSetAttenuation(ADC_11db);
+  //ADC settings
+  analogReadResolution(12);
+  analogSetAttenuation(ADC_11db);
 
-    // //PWM settings
-    // ledcAttach(FAN_PIN, PWM_FREQ, PWM_RES);
+  //PWM settings
+  ledcAttach(FAN_PIN, PWM_FREQ, PWM_RES);
 
 
 }
 
 void loop(){
-  Card detection
+  //Card detection
   if (rfid.PICC_IsNewCardPresent() == true && rfid.PICC_ReadCardSerial() == true)
   {
     String uid = getUID();
-    Serial.println(uid);
-    //accessCheck(uid);
+    accessCheck(uid);
     rfid.PICC_HaltA();
     rfid.PCD_StopCrypto1();
   }
 
   //Display Room information on OLED
+  grabTemp();
   float temp = getAvgTemp();
   String temperature = String(temp);
   showOnOLED(0, temperature);
@@ -261,14 +296,22 @@ void loop(){
     display.setCursor(0,0);
     display.println("Temperature: ");
     display.print(temperature);
+    display.display();
   }
   else{
     showOnOLED(16, "Free");
     display.setCursor(0,0);
     display.println("Temperature: ");
     display.print(temperature);
+    display.display();
   }
 
   fanSpeed();
+  Serial.println(potRead());
+
+  //timer
+  if (indicatorOn == true && millis() - indicatorStart >= indicatorTime){
+    onTimerExpired();
+  }
 
 }
