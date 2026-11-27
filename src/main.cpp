@@ -309,9 +309,9 @@ else
 {
     Serial.println("SD card initialization failed!");
 }
-WiFi.mode(WIFI_AP);
+WiFi.mode(WIFI_AP);..
 WiFi.softAP(ssid, password);
-Serial.print("IP Adress: "); // not sure if needed... but
+Serial.print("IP Address: "); // not sure if needed... but
 Serial.println(WiFi.softAPIP());
 server.on("/", HTTP_GET, handleRoot);
 server.on("/data", HTTP_GET,handleData);
