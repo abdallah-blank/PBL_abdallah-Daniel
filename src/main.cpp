@@ -54,7 +54,7 @@ const int numAuthorized = 1; //admin card and student card for access..
 String authorizedUIDs[numAuthorized];
 bool occupied = false;
 
-//Potentiometer Variables
+//Potentiometer/ADC Variables
 int ADC_BITS = 12;
 
 //Fan PWM variables
@@ -65,6 +65,22 @@ const int PWM_RES = 8;
 //temp readings var
 const int NUM_SAMPLES = 10;
 float samples[NUM_SAMPLES];
+
+
+//Global Variables (Bitwise, SD, wifi, webserver)
+volatile bool helpButtonPressed = false; //LAB 10
+byte statusByte = 0; // LAB 2
+byte previousStatusByte = 0; // Ref
+bool sdReady = false; // LAB 5
+const char* ssid = "STUDYROOMESP32"; // LAB 7
+const char* password = "password167!"; // PASSWORD ---------------------- LAB 7
+WebServer server(80); // LAB 7 
+
+
+//4.1 
+volatile unsigned long lastButtonPress = 0; //LAB 10 PART 4 Stores time of last button press 
+
+
 
 String getUID()
 {
@@ -182,7 +198,6 @@ void accessCheck(String uid){
 
 //bmp
 
-
 void grabTemp(){
   if (millis() - sampleTime >= 2000){
     for (int i = 0 ; i < NUM_SAMPLES; i++){ 
@@ -211,7 +226,7 @@ float potRead(){
   return setPoint;
 }
 
-void fanSpeed(){
+int fanSpeed(){
   float setPoint = potRead();
   float temp = getAvgTemp();
   float difference = temp - setPoint;
@@ -219,10 +234,13 @@ void fanSpeed(){
   if(setPoint < temp && occupied == true){
     int duty = map(difference, 0, 10, 150, 255);
     ledcWrite(FAN_PIN, duty);
+    return duty;
   }
   else{
     ledcWrite(FAN_PIN, 0);
+    return 0;
   }
+
 
 }
 
@@ -237,112 +255,45 @@ void showOnOLED(int Ycursor, String message){
   display.display();
 }
 
-
-
-
-
-void setup(){
-  Serial.begin(115200);
-  SPI.begin();
-  //Rfid
-  rfid.PCD_Init();
-  rfid.PCD_DumpVersionToSerial();
-  pinMode(RED_PIN, OUTPUT);
-  pinMode(GREEN_PIN, OUTPUT);
-  
-  //OLED setp
-  display.begin(SSD1306_SWITCHCAPVCC);
-  display.clearDisplay();
-
-
-  
-  //bmp280
-    Wire.begin();
-  // BMP280 code
-  if(bmp.begin(0x76))
+void IRAM_ATTR handleHelpButton()
+{ if (millis() - lastButtonPress > 200)
   {
-      Serial.println("BMP280 Found");
+    lastButtonPress = millis();
+    helpButtonPressed = true;
   }
-  else
-  {
-      Serial.println("BMP280 Not Found");
-  }
-
-  //ADC settings
-  analogReadResolution(12);
-  analogSetAttenuation(ADC_11db);
-
-  //PWM settings
-  ledcAttach(FAN_PIN, PWM_FREQ, PWM_RES);
-
-
 }
 
-void loop(){
-  //Card detection
-  if (rfid.PICC_IsNewCardPresent() == true && rfid.PICC_ReadCardSerial() == true)
-  {
-    String uid = getUID();
-    accessCheck(uid);
-    rfid.PICC_HaltA();
-    rfid.PCD_StopCrypto1();
+void logEvent(const char* eventType) {  //LAB 5
+if (!sdReady) {
+    Serial.println("SD card not read");
+    return; 
+    }
+File logFile = SD.open("/events.csv", FILE_APPEND);
+if (logFile) {
+    logFile.print(millis());
+    logFile.print(",");
+    logFile.println(eventType);
+    logFile.close();
+    } 
+else {
+    Serial.println("Error opening log file");
+    }
   }
 
-  //Display Room information on OLED
-  grabTemp();
-  float temp = getAvgTemp();
-  String temperature = String(temp);
-  showOnOLED(0, temperature);
-  if(occupied){
-    showOnOLED(16, "Occupied");
-    display.setCursor(0,0);
-    display.println("Temperature: ");
-    display.print(temperature);
-    display.display();
-  }
-  else{
-    showOnOLED(16, "Free");
-    display.setCursor(0,0);
-    display.println("Temperature: ");
-    display.print(temperature);
-    display.display();
-  }
-  fanSpeed();
-  Serial.println(potRead());
-
-  //timer
-  if (indicatorOn == true && millis() - indicatorStart >= indicatorTime){
-    onTimerExpired();
-  }
-
+void handleData() //LAB 11 msotly bit from 7
+{
+JsonDocument doc;
+int fan = fanSpeed();
+doc["roomStatus"] = occupied ? "Occupied" : "Free";
+doc["averageTemperature"] = getAvgTemp();
+doc["fanLevel"] = fan;
+doc["statusByte"] = statusByte;
+String json;
+serializeJson(doc, json);
+server.send(200, "application/json", json);
 }
 
 
-//Pin Definitions
-#define Button_PIN 14
-#define chipSelect 15
-#define POT_PIN 32 // ABDULLAH CODE
-
-//Global Variables
-volatile bool helpButtonPressed = false; //LAB 10
-byte statusByte = 0; // LAB 2
-byte previousStatusByte = 0; // Ref
-bool sdReady = false; // LAB 5
-const char* ssid = "STUDYROOMESP32"; // LAB 7
-const char* password = "password167!"; // PASSWORD ---------------------- LAB 7
-WebServer server(80); // LAB 7 
-int ADC_BITS = 12;
-
-//ABDULLAH CODE
-Adafruit_BMP280 bmp;
-const int NUM_SAMPLES = 10;
-int samples[NUM_SAMPLES];
-
-
-//4.1 
-volatile unsigned long lastButtonPress = 0; //LAB 10 PART 4 Stores time of last button press 
-
-bool occupied = false; //In Abdullah's code too
 
 // MS SAJU WEBPAGE START
 const char webpage[] PROGMEM = R"rawliteral( 
@@ -504,64 +455,9 @@ IP Address: 192.168.4.1
 )rawliteral";
 // MS SAJU WEBPAGE END
 
-float getAvgTemp(){
-    long sum = 0;
-    for (int i = 0; i < NUM_SAMPLES; i++){
-        sum = sum + samples[i];
-    }
-
-    return (float)sum/NUM_SAMPLES;
-}
-
-
-float potRead(){
-  
-  int potValue = analogRead(POT_PIN);
-  int maxValue = pow(2,ADC_BITS) -1;
-  float setPoint = potValue * 40 / maxValue;
-  return setPoint;
-}
-
-void IRAM_ATTR handleHelpButton()
-{ if (millis() - lastButtonPress > 200)
-  {
-    lastButtonPress = millis();
-    helpButtonPressed = true;
-  }
-}
-
-void logEvent(const char* eventType) {  //LAB 5
-if (!sdReady) {
-    Serial.println("SD card not read");
-    return; 
-    }
-File logFile = SD.open("/events.csv", FILE_APPEND);
-if (logFile) {
-    logFile.print(millis());
-    logFile.print(",");
-    logFile.println(eventType);
-    logFile.close();
-    } 
-else {
-    Serial.println("Error opening log file");
-    }
-  }
-
-void handleData() //LAB 11 msotly bit from 7
-{
-JsonDocument doc;
-
-doc["roomStatus"] = occupied ? "Occupied" : "Free";
-doc["averageTemperature"] = getAvgTemp();
-doc["fanLevel"] = 0;
-doc["statusByte"] = statusByte;
-String json;
-serializeJson(doc, json);
-server.send(200, "application/json", json);
-}
-
 void handleRoot() // LAB 7
 {
+  int fan = fanSpeed();
   String page = webpage;
   page.replace(
   "TEMP_PLACEHOLDER", 
@@ -573,7 +469,7 @@ void handleRoot() // LAB 7
 );
   page.replace(
   "FAN_LEVEL_PLACEHOLDER", 
-  String(0)
+  String(fan)
 );
   page.replace(
   "STATUS_BYTE_PLACEHOLDER", 
@@ -582,84 +478,162 @@ void handleRoot() // LAB 7
   server.send(200, "text/html", page);
 }
 
-//SETUP
-void setup ()
-{
-Serial.begin(115200);
-SPI.begin();
-pinMode(Button_PIN, INPUT_PULLUP); // BUTTON INPUT PULLUP SET
-attachInterrupt(digitalPinToInterrupt(Button_PIN), handleHelpButton, FALLING); 
 
-sdReady = SD.begin(chipSelect);
-if (sdReady)
-{
- Serial.println("SD card initialized.");
+void setup(){
+  Serial.begin(115200);
+  pinMode(chipSelect, OUTPUT); digitalWrite(chipSelect, HIGH);
+  pinMode(RFID_SS, OUTPUT); digitalWrite(RFID_SS, HIGH);
+  pinMode(OLED_CS, OUTPUT); digitalWrite(OLED_CS, HIGH);
+  SPI.begin();
 
-if (!SD.exists("/events.csv"))
-{
-  File logFile = SD.open("/events.csv", FILE_WRITE);
-
-  if (logFile)
+  //Rfid
+  rfid.PCD_Init();
+  rfid.PCD_DumpVersionToSerial();
+  
+  pinMode(RED_PIN, OUTPUT);
+  pinMode(GREEN_PIN, OUTPUT);
+  
+  //OLED setup
+  display.begin(SSD1306_SWITCHCAPVCC);
+  display.clearDisplay();
+  
+  //sd start
+  sdReady = SD.begin(chipSelect);
+  
+  //bmp280
+  Wire.begin();
+  // BMP280 code
+  if(bmp.begin(0x76))
   {
-    logFile.println("Timestamp,EventType");
-    logFile.close();
-    Serial.println("Log file created.");
+    Serial.println("BMP280 Found");
   }
   else
   {
-  Serial.println("Error creating log file.");
+     Serial.println("BMP280 Not Found");
+  }
+
+  //ADC settings
+  analogReadResolution(12);
+  analogSetAttenuation(ADC_11db);
+
+  //PWM settings
+  ledcAttach(FAN_PIN, PWM_FREQ, PWM_RES);
+  //button setups
+  pinMode(Button_PIN, INPUT_PULLUP); // BUTTON INPUT PULLUP SET
+  attachInterrupt(digitalPinToInterrupt(Button_PIN), handleHelpButton, FALLING); 
+
+
+
+
+
+  if (sdReady)
+  {
+  Serial.println("SD card initialized.");
+
+  if (!SD.exists("/events.csv"))
+  {
+    File logFile = SD.open("/events.csv", FILE_WRITE);
+
+    if (logFile)
+    {
+      logFile.println("Timestamp,EventType");
+      logFile.close();
+      Serial.println("Log file created.");
+    }
+    else
+    {
+    Serial.println("Error creating log file.");
+    }
+  }
+  }
+  else
+  {
+      Serial.println("SD card initialization failed!");
+  }
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(ssid, password);
+  Serial.print("IP Address: "); // not sure if needed... but
+  Serial.println(WiFi.softAPIP());
+  server.on("/", HTTP_GET, handleRoot);
+  server.on("/data", HTTP_GET,handleData);
+  server.begin();
+  Serial.println("Server started"); 
+}
+
+
+
+
+void loop(){
+  //Card detection
+  if (rfid.PICC_IsNewCardPresent() == true && rfid.PICC_ReadCardSerial() == true)
+  {
+    String uid = getUID();
+    accessCheck(uid);
+    rfid.PICC_HaltA();
+    rfid.PCD_StopCrypto1();
+  }
+
+  //Display Room information on OLED
+  grabTemp();
+  float temp = getAvgTemp();
+  String temperature = String(temp);
+  showOnOLED(0, temperature);
+  if(occupied){
+    showOnOLED(16, "Occupied");
+    display.setCursor(0,0);
+    display.println("Temperature: ");
+    display.print(temperature);
+    display.display();
+  }
+  else{
+    showOnOLED(16, "Free");
+    display.setCursor(0,0);
+    display.println("Temperature: ");
+    display.print(temperature);
+    display.display();
+  }
+  fanSpeed();
+
+  //timer
+  if (indicatorOn == true && millis() - indicatorStart >= indicatorTime){
+    onTimerExpired();
+  }
+  server.handleClient(); 
+  if (helpButtonPressed == true) // LAB 10 PArt 4
+  {
+    helpButtonPressed = false;
+    statusByte |= 0b00000100; // LAB 2 BIT MASKING 
+    logEvent("HELP"); // LAB 5 .. 
+  }
+
+  if (occupied) //L2
+  {
+    statusByte |= 0b00000001; // ROOm OCCUPIED
+  }
+  else
+  {
+    statusByte &= ~0b00000001; // ROOM FREe
+  }
+
+  if (getAvgTemp() > potRead())
+  {
+    statusByte |= 0b00000010; // SET TEMP HIGH
+  }
+  else
+  {
+    statusByte &= ~0b00000010; // SET TEMP LOW
+  }
+
+  if (statusByte != previousStatusByte)
+  {
+    Serial.print("Status Byte: ");
+    Serial.println(statusByte, BIN);
+    previousStatusByte = statusByte; //L2
   }
 }
-}
-else
-{
-    Serial.println("SD card initialization failed!");
-}
-WiFi.mode(WIFI_AP);..
-WiFi.softAP(ssid, password);
-Serial.print("IP Address: "); // not sure if needed... but
-Serial.println(WiFi.softAPIP());
-server.on("/", HTTP_GET, handleRoot);
-server.on("/data", HTTP_GET,handleData);
-server.begin();
-Serial.println("Server started");
-} 
 
 
-//LOOP
-void loop ()
-{
-server.handleClient(); 
-if (helpButtonPressed == true) // LAB 10 PArt 4
-{
-  helpButtonPressed = false;
-  statusByte |= 0b00000100; // LAB 2 BIT MASKING 
-  logEvent("HELP"); // LAB 5 .. 
-}
 
-if (occupied) //L2
-{
-  statusByte |= 0b00000001; // ROOm OCCUPIED
-}
-else
-{
-  statusByte &= ~0b00000001; // ROOM FREe
-}
 
-if (getAvgTemp() > potRead())
-{
-  statusByte |= 0b00000010; // SET TEMP HIGH
-}
-else
-{
-  statusByte &= ~0b00000010; // SET TEMP LOW
-}
 
-if (statusByte != previousStatusByte)
-{
-  Serial.print("Status Byte: ");
-  Serial.println(statusByte, BIN);
-  previousStatusByte = statusByte; //L2
-}
 
-}
