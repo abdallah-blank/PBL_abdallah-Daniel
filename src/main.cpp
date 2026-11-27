@@ -11,6 +11,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <SD.h>
+#include <BLE_UART.h>
 
 //Define pins
 //rfid
@@ -48,6 +49,11 @@ unsigned long indicatorStart = 0;
 unsigned long indicatorTime = 0;
 bool indicatorOn = false;
 unsigned long sampleTime = 0;
+
+//Challenge Global Variables
+String staffMessage = "";
+bool staffMeassageActive = false;
+unsigned long staffMessageTime = 0;
 
 //RFID CHECKIN/OUT Variables
 const int numAuthorized = 1; //admin card and student card for access..
@@ -496,7 +502,11 @@ void setup(){
   //OLED setup
   display.begin(SSD1306_SWITCHCAPVCC);
   display.clearDisplay();
-  
+
+  // Challenge found this in lab 8
+  bleBegin("StudyRoomESP32");
+  Serial.println("BLE started");  
+
   //sd start
   sdReady = SD.begin(chipSelect);
   
@@ -564,6 +574,14 @@ void setup(){
 
 
 void loop(){
+//ENHANCMNT 
+if (bleMessageAvailable() == true) {
+    staffMessage = bleReadMessage();
+    staffMeassageActive = true;
+    staffMessageTime = millis();
+    Serial.print("Received BLE message: ");
+    Serial.println(staffMessage);
+  }
   //Card detection
   if (rfid.PICC_IsNewCardPresent() == true && rfid.PICC_ReadCardSerial() == true)
   {
@@ -574,7 +592,7 @@ void loop(){
   }
 
   //Display Room information on OLED
-  grabTemp();
+  grabTemp();        // HAVE TO EDIT THIS TO DO THE MODIFICATIOn
   float temp = getAvgTemp();
   String temperature = String(temp);
   showOnOLED(0, temperature);
