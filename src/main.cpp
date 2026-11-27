@@ -49,11 +49,13 @@ unsigned long indicatorStart = 0;
 unsigned long indicatorTime = 0;
 bool indicatorOn = false;
 unsigned long sampleTime = 0;
+unsigned long msgTime = 0;
 
 //Challenge Global Variables
 String staffMessage = "";
 bool staffMeassageActive = false;
 unsigned long staffMessageTime = 0;
+bool staffMsgtime = false;
 
 //RFID CHECKIN/OUT Variables
 const int numAuthorized = 1; //admin card and student card for access..
@@ -219,7 +221,6 @@ float getAvgTemp(){
   for (int i = 0; i < NUM_SAMPLES; i++){
     sum = sum + samples[i];
   }
-
   return (float)sum/NUM_SAMPLES;
 }
 
@@ -252,14 +253,37 @@ int fanSpeed(){
 
 //OLED display function
 void showOnOLED(int Ycursor, String message){
-  display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
   display.setTextSize(2);
 
   display.setCursor(0,Ycursor);
   display.println(message);
-  display.display();
 }
+
+//function to display the ble message on the OLED
+void bleDisplay(String message){
+  display.clearDisplay();
+  display.setTextSize(2);
+
+  display.setCursor(0,0);
+  display.println(message);
+}
+
+//Detects BLE UART message and displays it
+void bleMessage(){
+  staffMeassageActive = bleMessageAvailable();
+  if (bleMessageAvailable() == true) {
+  staffMessage = bleReadMessage();
+  staffMeassageActive = true;
+  staffMessageTime = millis();
+  Serial.print("Received BLE message: ");
+  Serial.println(staffMessage);
+  bleDisplay(staffMessage);
+  display.display();
+  delay(5000);
+  }
+}
+ 
 
 void IRAM_ATTR handleHelpButton()
 { if (millis() - lastButtonPress > 200)
@@ -519,7 +543,7 @@ void setup(){
   }
   else
   {
-     Serial.println("BMP280 Not Found");
+    Serial.println("BMP280 Not Found");
   }
 
   //ADC settings
@@ -558,7 +582,7 @@ void setup(){
   }
   else
   {
-      Serial.println("SD card initialization failed!");
+    Serial.println("SD card initialization failed!");
   }
   WiFi.mode(WIFI_AP);
   WiFi.softAP(ssid, password);
@@ -571,17 +595,8 @@ void setup(){
 }
 
 
-
-
 void loop(){
 //ENHANCMNT 
-if (bleMessageAvailable() == true) {
-    staffMessage = bleReadMessage();
-    staffMeassageActive = true;
-    staffMessageTime = millis();
-    Serial.print("Received BLE message: ");
-    Serial.println(staffMessage);
-  }
   //Card detection
   if (rfid.PICC_IsNewCardPresent() == true && rfid.PICC_ReadCardSerial() == true)
   {
@@ -595,21 +610,25 @@ if (bleMessageAvailable() == true) {
   grabTemp();        // HAVE TO EDIT THIS TO DO THE MODIFICATIOn
   float temp = getAvgTemp();
   String temperature = String(temp);
-  showOnOLED(0, temperature);
+
+
+  bleMessage();
+
   if(occupied){
-    showOnOLED(16, "Occupied");
-    display.setCursor(0,0);
-    display.println("Temperature: ");
-    display.print(temperature);
-    display.display();
+  display.clearDisplay();
+  showOnOLED(32, "Occupied");
+  showOnOLED(0, "Temp :");
+  showOnOLED(16, temperature);
+  display.display();
   }
   else{
-    showOnOLED(16, "Free");
-    display.setCursor(0,0);
-    display.println("Temperature: ");
-    display.print(temperature);
+    display.clearDisplay();
+    showOnOLED(32, "Free");
+    showOnOLED(0, "Temp :");
+    showOnOLED(16, temperature);
     display.display();
   }
+
   fanSpeed();
 
   //timer
