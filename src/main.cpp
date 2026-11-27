@@ -543,7 +543,10 @@ void setup(){
   if (!SD.exists("/events.csv"))
   {
     File logFile = SD.open("/events.csv", FILE_WRITE);
-
+    dataFile.println(Time);
+    dataFile.print(",");
+    dataFile.println(EventType);
+    dataFile.print(",");
     if (logFile)
     {
       logFile.println("Timestamp,EventType");
