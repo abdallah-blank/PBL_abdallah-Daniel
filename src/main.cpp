@@ -294,20 +294,24 @@ void IRAM_ATTR handleHelpButton()
 }
 
 void logEvent(const char* eventType) {  //LAB 5
-if (!sdReady) {
+  if (!sdReady) {
     Serial.println("SD card not read");
     return; 
-    }
-File logFile = SD.open("/events.csv", FILE_APPEND);
-if (logFile) {
+  }
+  else{
+    Serial.println("SD card read");
+    return;
+  }
+  File logFile = SD.open("/events.csv", FILE_APPEND);
+  if (logFile) {
     logFile.print(millis());
     logFile.print(",");
     logFile.println(eventType);
     logFile.close();
-    } 
-else {
+  } 
+  else {
     Serial.println("Error opening log file");
-    }
+  }
   }
 
 void handleData() //LAB 11 msotly bit from 7
@@ -556,30 +560,26 @@ void setup(){
   pinMode(Button_PIN, INPUT_PULLUP); // BUTTON INPUT PULLUP SET
   attachInterrupt(digitalPinToInterrupt(Button_PIN), handleHelpButton, FALLING); 
 
-
-
-
-
   if (sdReady)
   {
   Serial.println("SD card initialized.");
-
-  if (!SD.exists("/events.csv"))
-  {
-    File logFile = SD.open("/events.csv", FILE_WRITE);
-
-    if (logFile)
+    if (!SD.exists("/events.csv"))
     {
-      logFile.println("Timestamp,EventType");
-      logFile.close();
-      Serial.println("Log file created.");
+      Serial.println("Found in sd card");
+      File logFile = SD.open("/events.csv", FILE_WRITE);
+
+      if (logFile)
+      {
+        logFile.println("Timestamp,EventType");
+        logFile.close();
+        Serial.println("Log file created.");
+      }
+      else
+      {
+      Serial.println("Error creating log file.");
+      }
     }
-    else
-    {
-    Serial.println("Error creating log file.");
     }
-  }
-  }
   else
   {
     Serial.println("SD card initialization failed!");
